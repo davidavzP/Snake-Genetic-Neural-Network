@@ -166,6 +166,35 @@ class Player():
             inputs.extend(vals)
         return inputs
     
+    def lookTest(self, maximum, minimum, painter, l):
+        inputs = []
+        vision = self.snake.vision
+        assert(len(self.objects) == 3)
+        for ray in vision.rays:
+            vals = []
+            for obj in self.objects:
+                name = obj.name()
+                record = maximum
+                closest = None
+                for line in obj.getPoints():
+                   point = ray.cast(line) 
+                   if point != None:
+                       dist = ray.distanceTo(point[0], point[1])
+                       if dist < record:
+                            record = dist
+                            closest = point
+                distance = record
+                vals.append(distance)
+                if closest != None:
+                    pos = ray.pos
+                    x1 = pos[0]*l
+                    y1 = pos[1]*l
+                    painter.drawLine(x1,y1,closest[0]*l,closest[1]*l)
+
+            assert(len(vals) == len(self.objects))
+            inputs.extend(vals)
+        return inputs
+    
     def move(self, vision):
         inputs = []
         inputs.extend(vision)
@@ -206,9 +235,9 @@ class Player():
     def calculateFitness(self, frames, apples):
         frames = float(frames)
         apples = float(apples)
-        return ((20*apples)**2) + (5*frames)
+        #return (frames*frames) + (2**apples)
         
-        # c = (frames) + ((2**apples) + (apples**2.1)*500) - (((0.25 * frames)**1.3) * (apples**1.2))                                                                                     
+        return (frames) + ((2**apples) + (apples**2.1)*500) - (((0.25 * frames)**1.3) * (apples**1.2))                                                                                     
         # return max(c, 0.1)
 
     

@@ -10,8 +10,8 @@ import random
 class Perceptron(tf.Module):
     def __init__(self, weights, biases, name=None):
         super().__init__(name=name)
-        self.weights = tf.Variable(weights, dtype="float32", name="weights")
-        self.biases = tf.Variable(biases, dtype="float32", name='biases')
+        self.weights = tf.Variable(weights, name="weights")
+        self.biases = tf.Variable(biases, name='biases')
     def __call__(self, x):
         return tf.matmul(x, self.weights) + self.biases
 
@@ -24,13 +24,11 @@ class MLP(tf.Module):
         self.fitness = fitness
 
     ###--NEW--Calling Method
+    @tf.function
     def __call__(self, x):
-        x = tf.convert_to_tensor([x], dtype="float32")
-        for i in range(len(self.layers) - 1):
-            x = self.layers[i](x)
-            x = tf.nn.relu(x)
-        x = self.layers[-1](x)
-        x = tf.nn.sigmoid(x)
+        for layer in self.layers:
+            x = layer(x)
+            x = tf.sigmoid(x)
         return x
 
     ###--NEW--Generalized Layer Creation
@@ -50,16 +48,14 @@ class MLP(tf.Module):
     def get_layers(self):
         return self.layers
 
-
-
 #####################
 ## 32~HIDDENODES~4 ##
 #####################
 def get_rand_Agent():
-    return MLP([32, 50, 25, 4]).build_model()
+    return MLP([32, 20, 12, 4]).build_model()
 
 def get_rand_Agent_wf(fitness):
-    return MLP([32, 50, 25, 4], fitness).build_model()
+    return MLP([32, 20, 12, 4], fitness).build_model()
 
 def normalizeFitness(agents):
     s = 0.0
@@ -110,63 +106,8 @@ def wheelSelection(pop):
     return None
 
 def crossOver(agents, i1, i2):
-    p1 = agents[i1].brain
-    p2 = agents[i2].brain
-    fitness = max(p1.fitness, p2.fitness)
-    assert(len(p1.get_layers()) == len(p2.get_layers()))
-    lp1 = p1.get_layers()
-    lp2 = p2.get_layers()
-    num_layers = len(lp1)
-    layers = p1.lstruc
-
-    wp1 = np.array([])
-    bp1 = np.array([])
-    wp2 = np.array([])
-    bp2 = np.array([])
-    for i in range(num_layers):
-        wp1 = np.append(wp1, tf.reshape(lp1[i].weights, [-1]).numpy())
-        bp1 = np.append(bp1, tf.reshape(lp1[i].biases, [-1]).numpy())
-        wp2 = np.append(wp2, tf.reshape(lp2[i].weights, [-1]).numpy())
-        bp2 = np.append(bp2, tf.reshape(lp2[i].biases, [-1]).numpy())
-
-    assert(np.shape(wp1) == np.shape(wp2))
-    assert(np.shape(bp1) == np.shape(bp2))
-
-    wsplit = random.randint(0, len(wp1) - 1)
-    bsplit = random.randint(0, len(bp1) - 1)
-
-    cw = np.concatenate([wp1[:wsplit], wp2[wsplit:]])
-    cb = np.concatenate([bp1[:bsplit], bp2[bsplit:]])
-
-    networkweights = []
-    networkbiases = []
-    startw = 0
-    startb = 0
-    for i in range(num_layers):
-        a = layers[i]
-        endb = layers[i + 1]
-        endw = startw + a * endb 
-
-        w = cw[startw:endw]
-        w = tf.Variable(w, dtype="float32")
-        w = tf.reshape(w, [a, endb])
-        networkweights.append(w)
-        startw = endw
-
-        endb = startb + endb
-        b = cb[startb: endb]
-        networkbiases.append(b)
-        startb = endb
-
-    network = []
-    for i in range(num_layers):
-        network.append(Perceptron(networkweights[i], networkbiases[i]))
-
-    return MLP(layers, layers=network, fitness=fitness)
-
-def crossOver2(agents, i1, i2):
-    p1 = agents[i1].brain
-    p2 = agents[i2].brain
+    p1 = agents[i1]
+    p2 = agents[i2]
     fitness = max(p1.fitness, p2.fitness)
     assert(len(p1.get_layers()) == len(p2.get_layers()))
     lp1 = p1.get_layers()
@@ -208,7 +149,6 @@ def crossOver2(agents, i1, i2):
         endw = startw + a * endb 
 
         w = cw[startw:endw]
-        w = tf.Variable(w, dtype="float32")
         w = tf.reshape(w, [a, endb])
         networkweights.append(w)
         startw = endw
@@ -238,7 +178,9 @@ def mutate(agent, chance):
 
     for i in range(len(nw)):
         if random.uniform(0,1) < chance:
+                print(nw[i])
                 nw[i] += random.gauss(0, 1)
+                print("A: ", nw[i])
     for i in range(len(nb)):
         if random.uniform(0,1) < chance:
             nb[i] += random.gauss(0,1)
@@ -253,7 +195,6 @@ def mutate(agent, chance):
         endw = startw + a * endb 
 
         w = nw[startw:endw]
-        w = tf.Variable(w, dtype="float32")
         w = tf.reshape(w, [a, endb])
         networkweights.append(w)
         startw = endw
@@ -263,11 +204,11 @@ def mutate(agent, chance):
         networkbiases.append(b)
         startb = endb
 
-    networklayers = []
+    network = []
     for i in range(num_layers):
-        networklayers.append(Perceptron(networkweights[i], networkbiases[i]))
+        network.append(Perceptron(networkweights[i], networkbiases[i]))
     
-    return MLP(network, layers=networklayers, fitness=fitness)
+    return MLP(layers, layers=network, fitness=fitness)
 
 
 def normalizeFitnessTest(agents):

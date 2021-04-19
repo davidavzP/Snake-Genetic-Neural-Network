@@ -56,7 +56,7 @@ class Window(QMainWindow):
             self.y_vals.append(self.board.players[0].brain.fitness)
             plt.plot(self.x_vals,self.y_vals)
 
-            ani = FuncAnimation(plt.gcf(), self.animatePlot, interval='100')
+            ani = FuncAnimation(plt.gcf(), self.animatePlot, interval='1000')
 
             plt.tight_layout()
             plt.show()
@@ -88,20 +88,20 @@ class Board(QFrame):
 
            
         def initBoardTest(self):
+            self.popsize = 1
             self.players = []
             self.dead = []
             self.bounds = GameBounds(shape.Rectangle(0,0,self.BLOCKS,self.BLOCKS))
             snake = sk.Snek([(1,6), (1,7), (1,8)], Direction.UP, 1)
-            apple = sk.Apple(1, 5, 1)
+            apple = sk.Apple(1, 2, 1)
             brain = gnn.get_rand_Agent()
             player = sk.Player(self.bounds, snake, apple, brain)
             self.players.append(player)
             
         
         def initBoard2(self):
-            self.popsize = 1000
+            self.popsize = 500
             self.players = []
-            self.best = []
             self.dead = []
             self.bounds = GameBounds(shape.Rectangle(0,0,self.BLOCKS,self.BLOCKS))
             for i in range(self.popsize):
@@ -110,7 +110,6 @@ class Board(QFrame):
                 brain = gnn.get_rand_Agent()
                 player = sk.Player(self.bounds, snake, apple, brain)
                 self.players.append(player)
-            self.best = self.players[0]
         
         def initText(self):
             self.frames = 1
@@ -165,6 +164,34 @@ class Board(QFrame):
                     if i == 0:
                         color = QColor(0x003200)
                     self.draw_square(painter, x, y,color)
+        
+        def drawSnekVision(self, painter,player):
+            painter.setPen(QPen(Qt.black, 1))
+            player.lookTest(self.BLOCKS, 0.0, painter, self.square_length())
+
+        
+        # def drawSnekVision(self,painter, player):
+        #     painter.setPen(QPen(Qt.black, 1))
+        #     vision = player.snake.vision
+        #     for ray in vision.rays:
+        #         closest = None
+        #         record = math.inf
+        #         for o in player.objects:
+        #             for line in o.getPoints():
+        #                 point = ray.cast(line)
+        #                 if point != None:
+        #                     dist = ray.distanceTo(point[0], point[1])
+        #                     if dist < record:
+        #                         record = dist
+        #                         closest = point
+        #         if closest != None:
+        #             pos = ray.pos
+        #             dr = ray.dir
+        #             x1 = pos[0]*self.square_length()
+        #             y1 = pos[1]*self.square_length()
+        #             x2 = x1 + dr[0]*100
+        #             y2 = y1 + dr[1]*100
+        #             painter.drawLine(x1,y1,closest[0]*self.square_length(),closest[1]*self.square_length())
                 
         def draw_boarder(self, painter):
             painter.setPen(QPen(Qt.black, 2))
@@ -186,7 +213,11 @@ class Board(QFrame):
                     self.frames += 1 
                 else:
                     self.frames = 1
-                    newpop = self.createNewGen()
+                    newpop = []
+                    if self.popsize >= 2:
+                        newpop = self.createNewGen()
+                    else:
+                        newpop.append(self.makeNewPlayer(gnn.get_rand_Agent()))
                     self.dead.clear()
                     self.players = newpop
 
@@ -198,21 +229,21 @@ class Board(QFrame):
             pop = sorted(self.dead, key=lambda player: player.brain.fitness, reverse=True)
             print("MAX FIT: ", pop[0].brain.fitness, "MIN FIT: ", pop[-1].brain.fitness)
             print("MAX APPLE: ", pop[0].num_apples)
-            fourth = int(math.floor(self.popsize/4))
+            fourth = int(math.floor(self.popsize/10))
             pop = pop[:self.popsize]
             pool = pop[:fourth]
             self.generation += 1
-            mutrate = 0.05
+            mutrate = 0.2
             print("MUTATION RATE: ", mutrate)
             assert(len(pop) > 1)
 
             newpop = []
-            for i in range(10):
+            for i in range(fourth):
                 newpop.append(self.makeNewPlayer(pop[i].brain))
             assert(newpop[0].brain.fitness == pop[0].brain.fitness)
             for i in range(self.popsize):
                 p1,p2 = self.getParents(pool)     
-                childbrain = gnn.crossOver2(pool, p1, p2)
+                childbrain = gnn.crossOver(pool, p1, p2)
                 childbrain = gnn.mutate(childbrain, mutrate)  
                 newpop.append(self.makeNewPlayer(childbrain))
 
@@ -246,26 +277,26 @@ class Board(QFrame):
                 self.end_game(player)
         
         def keyPressEvent(self, event):
-            pass
-            # key = event.key()
-            # ##FOR HUMAN INPUT ONLY##
-            # time.sleep(.1)
-            # #####################
-            # for player in self.players:
-            #     snake = player.snake
-            #     direction = snake.headir
-            #     if key == Qt.Key_Left:
-            #         if direction != Direction.RIGHT:
-            #                 snake.updateHeadDirection(Direction.LEFT)
-            #     elif key == Qt.Key_Right:
-            #         if direction != Direction.LEFT:
-            #             snake.updateHeadDirection(Direction.RIGHT)
-            #     elif key == Qt.Key_Up:
-            #         if direction != Direction.DOWN:
-            #             snake.updateHeadDirection(Direction.UP)
-            #     elif key == Qt.Key_Down:
-            #         if direction != Direction.UP:
-            #             snake.updateHeadDirection(Direction.DOWN)
+            
+            key = event.key()
+            ##FOR HUMAN INPUT ONLY##
+            time.sleep(.1)
+            #####################
+            for player in self.players:
+                snake = player.snake
+                direction = snake.headir
+                if key == Qt.Key_Left:
+                    if direction != Direction.RIGHT:
+                            snake.updateHeadDirection(Direction.LEFT)
+                elif key == Qt.Key_Right:
+                    if direction != Direction.LEFT:
+                        snake.updateHeadDirection(Direction.RIGHT)
+                elif key == Qt.Key_Up:
+                    if direction != Direction.DOWN:
+                        snake.updateHeadDirection(Direction.UP)
+                elif key == Qt.Key_Down:
+                    if direction != Direction.UP:
+                        snake.updateHeadDirection(Direction.DOWN)
 
         def move(self, player):
             snake = player.snake
@@ -296,6 +327,12 @@ class Board(QFrame):
                 snake.dirpop()
             else:
                 snake.growing = False
+                apple = player.apple
+                player.removeObject(apple)
+                apple.updatePos(player.snake.body, self.BLOCKS, self.BLOCKS)
+                player.addObject(apple)
+                player.num_apples += 1
+
             snake.updateBody()
             snake.updateVision()
             
@@ -306,11 +343,8 @@ class Board(QFrame):
             apple = player.apple
             applepos = apple.pos
             if applepos == head:
-                player.removeObject(apple)
-                apple.updatePos(player.snake.body, self.BLOCKS, self.BLOCKS)
-                player.addObject(apple)
                 player.snake.growing = True
-                player.num_apples += 1
+                
         
         def is_dead(self, player):
             body = player.snake.body 
